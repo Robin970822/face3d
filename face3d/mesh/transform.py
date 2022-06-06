@@ -223,6 +223,19 @@ def to_image(vertices, h, w, is_perspective = False):
     return image_vertices
 
 
+def reverse_to_projected(vertices, h, w, is_perspective=False):
+    projected_vertices = vertices.copy()
+    # flip vertics along y-axis
+    projected_vertices[:, 1] = h - projected_vertices[:, 1] - 1
+    # move to center of image
+    projected_vertices[:, 0] -= w / 2
+    projected_vertices[:, 1] -= h / 2
+    if is_perspective:
+        projected_vertices[:, 0] /= w / 2
+        projected_vertices[:, 1] /= h / 2
+    return projected_vertices
+
+
 #### -------------------------------------------2. estimate transform matrix from correspondences.
 def estimate_affine_matrix_3d23d(X, Y):
     ''' Using least-squares solution 

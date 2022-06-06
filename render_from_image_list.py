@@ -26,19 +26,6 @@ def unpack_bz2(src_path):
     return dst_path
 
 
-def reverse_to_image(vertices, h, w, is_perspective=False):
-    projected_vertices = vertices.copy()
-    # flip vertics along y-axis
-    projected_vertices[:, 1] = h - projected_vertices[:, 1] - 1
-    # move to center of image
-    projected_vertices[:, 0] -= w / 2
-    projected_vertices[:, 1] -= h / 2
-    if is_perspective:
-        projected_vertices[:, 0] /= w / 2
-        projected_vertices[:, 1] /= h / 2
-    return projected_vertices
-
-
 class LandmarksDetector:
     def __init__(self, predictor_model_path):
         """
@@ -85,7 +72,7 @@ if __name__ == '__main__':
 
         h, w, _ = img.shape
         x_face_landmarks = np.array(face_landmarks).astype('float64')
-        projected_vertices = reverse_to_image(x_face_landmarks, h, w)
+        projected_vertices = mesh.transform.reverse_to_projected(x_face_landmarks, h, w)
         X_ind = bfm.kpt_ind
         # fitting
         fitted_sp, fitted_ep, fitted_s, fitted_angles, fitted_t = bfm.fit(projected_vertices, X_ind, max_iter=10,
