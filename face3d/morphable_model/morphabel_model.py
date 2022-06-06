@@ -118,7 +118,7 @@ class  MorphabelModel(object):
         return mesh.transform.similarity_transform(vertices, s, R, t3d)
 
     # --------------------------------------------------- fitting
-    def fit(self, x, X_ind, max_iter = 4, isShow = False):
+    def fit(self, x, X_ind, max_iter = 4, isShow = False, withExpression=True):
         ''' fit 3dmm & pose parameters
         Args:
             x: (n, 2) image points
@@ -135,6 +135,9 @@ class  MorphabelModel(object):
             angles = np.zeros((R.shape[0], 3))
             for i in range(R.shape[0]):
                 angles[i] = mesh.transform.matrix2angle(R[i])
+        elif not withExpression:
+            fitted_sp, fitted_ep, s, R, t = fit.fit_points_zero_expression(x, X_ind, self.model, n_sp=self.n_shape_para, n_ep=self.n_exp_para, max_iter=max_iter)
+            angles = mesh.transform.matrix2angle(R)
         else:
             fitted_sp, fitted_ep, s, R, t = fit.fit_points(x, X_ind, self.model, n_sp = self.n_shape_para, n_ep = self.n_exp_para, max_iter = max_iter)
             angles = mesh.transform.matrix2angle(R)

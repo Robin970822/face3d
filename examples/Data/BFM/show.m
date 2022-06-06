@@ -33,7 +33,7 @@ axis equal;
 %% project
 s = 128;
 uv_coords = model_info.uv_coords * (s -1) + 1;
-uv_vertices = [uv_coords; zeros(1, size(uv_coords, 2))];
+uv_vertices = [uv_coords; zeros(1, size(uv_coords, 2))]';
 subplot(222);
 patch('Vertices', uv_vertices',  'FaceVertexCData', tex', 'Faces', tri', 'FaceColor', 'interp', 'EdgeColor', 'none', 'EdgeLighting', 'none', 'LineWidth', 1);
 % patch('Vertices', uv_vertices', 'Faces', model.tri_mouth', 'FaceColor', 'green', 'EdgeColor', edgeColor, 'EdgeLighting', 'none', 'LineWidth', 1);
