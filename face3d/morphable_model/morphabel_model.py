@@ -8,7 +8,8 @@ from .. import mesh
 from . import fit
 from . import load
 
-class  MorphabelModel(object):
+
+class MorphabelModel(object):
     """docstring for  MorphabelModel
     model: nver: number of vertices. ntri: number of triangles. *: must have. ~: can generate ones array for place holder.
             'shapeMU': [3*nver, 1]. *
@@ -24,41 +25,44 @@ class  MorphabelModel(object):
             'tri_mouth': [114, 3] (start from 1, as a supplement to mouth triangles). ~
             'kpt_ind': [68,] (start from 1). ~
     """
-    def __init__(self, model_path, model_type = 'BFM'):
-        super( MorphabelModel, self).__init__()
-        if model_type=='BFM':
+
+    def __init__(self, model_path, model_type='BFM'):
+        super(MorphabelModel, self).__init__()
+        if model_type == 'BFM':
             self.model = load.load_BFM(model_path)
+        elif model_type == 'BFM19':
+            self.model = load.load_BFM_from_h5(model_path)
         else:
             print('sorry, not support other 3DMM model now')
             exit()
-            
+
         # fixed attributes
-        self.nver = self.model['shapePC'].shape[0]/3
+        self.nver = self.model['shapePC'].shape[0] / 3
         self.ntri = self.model['tri'].shape[0]
         self.n_shape_para = self.model['shapePC'].shape[1]
         self.n_exp_para = self.model['expPC'].shape[1]
         self.n_tex_para = self.model['texMU'].shape[1]
-        
+
         self.kpt_ind = self.model['kpt_ind']
         self.triangles = self.model['tri']
         self.full_triangles = np.vstack((self.model['tri'], self.model['tri_mouth']))
 
     # ------------------------------------- shape: represented with mesh(vertices & triangles(fixed))
-    def get_shape_para(self, type = 'random'):
+    def get_shape_para(self, type='random'):
         if type == 'zero':
             sp = np.random.zeros((self.n_shape_para, 1))
         elif type == 'random':
-            sp = np.random.rand(self.n_shape_para, 1)*1e04
+            sp = np.random.rand(self.n_shape_para, 1) * 1e04
         return sp
 
-    def get_exp_para(self, type = 'random'):
+    def get_exp_para(self, type='random'):
         if type == 'zero':
             ep = np.zeros((self.n_exp_para, 1))
         elif type == 'random':
-            ep = -1.5 + 3*np.random.random([self.n_exp_para, 1])
+            ep = -1.5 + 3 * np.random.random([self.n_exp_para, 1])
             ep[6:, 0] = 0
 
-        return ep 
+        return ep
 
     def generate_vertices(self, shape_para, exp_para):
         '''
@@ -69,12 +73,12 @@ class  MorphabelModel(object):
             vertices: (nver, 3)
         '''
         vertices = self.model['shapeMU'] + self.model['shapePC'].dot(shape_para) + self.model['expPC'].dot(exp_para)
-        vertices = np.reshape(vertices, [int(3), int(len(vertices)/3)], 'F').T
+        vertices = np.reshape(vertices, [int(3), int(len(vertices) / 3)], 'F').T
 
         return vertices
 
     # -------------------------------------- texture: here represented with rgb value(colors) in vertices.
-    def get_tex_para(self, type = 'random'):
+    def get_tex_para(self, type='random'):
         if type == 'zero':
             tp = np.zeros((self.n_tex_para, 1))
         elif type == 'random':
@@ -88,11 +92,10 @@ class  MorphabelModel(object):
         Returns:
             colors: (nver, 3)
         '''
-        colors = self.model['texMU'] + self.model['texPC'].dot(tex_para*self.model['texEV'])
-        colors = np.reshape(colors, [int(3), int(len(colors)/3)], 'F').T/255.  
-        
-        return colors
+        colors = self.model['texMU'] + self.model['texPC'].dot(tex_para * self.model['texEV'])
+        colors = np.reshape(colors, [int(3), int(len(colors) / 3)], 'F').T / 255.
 
+        return colors
 
     # ------------------------------------------- transformation
     # -------------  transform
@@ -113,12 +116,12 @@ class  MorphabelModel(object):
         R = mesh.transform.angle2matrix(angles)
         return mesh.transform.similarity_transform(vertices, s, R, t3d)
 
-    def transform_3ddfa(self, vertices, s, angles, t3d): # only used for processing 300W_LP data
+    def transform_3ddfa(self, vertices, s, angles, t3d):  # only used for processing 300W_LP data
         R = mesh.transform.angle2matrix_3ddfa(angles)
         return mesh.transform.similarity_transform(vertices, s, R, t3d)
 
     # --------------------------------------------------- fitting
-    def fit(self, x, X_ind, max_iter = 4, isShow = False, withExpression=True):
+    def fit(self, x, X_ind, max_iter=4, isShow=False, withExpression=True, lamb=[40, 20]):
         ''' fit 3dmm & pose parameters
         Args:
             x: (n, 2) image points
@@ -131,16 +134,17 @@ class  MorphabelModel(object):
             s, angles, t
         '''
         if isShow:
-            fitted_sp, fitted_ep, s, R, t = fit.fit_points_for_show(x, X_ind, self.model, n_sp = self.n_shape_para, n_ep = self.n_exp_para, max_iter = max_iter)
+            fitted_sp, fitted_ep, s, R, t = fit.fit_points_for_show(x, X_ind, self.model, n_sp=self.n_shape_para,
+                                                                    n_ep=self.n_exp_para, max_iter=max_iter)
             angles = np.zeros((R.shape[0], 3))
             for i in range(R.shape[0]):
                 angles[i] = mesh.transform.matrix2angle(R[i])
         elif not withExpression:
-            fitted_sp, fitted_ep, s, R, t = fit.fit_points_zero_expression(x, X_ind, self.model, n_sp=self.n_shape_para, n_ep=self.n_exp_para, max_iter=max_iter)
+            fitted_sp, fitted_ep, s, R, t = fit.fit_points_zero_expression(x, X_ind, self.model, n_sp=self.n_shape_para,
+                                                                           n_ep=self.n_exp_para, max_iter=max_iter, lamb=lamb)
             angles = mesh.transform.matrix2angle(R)
         else:
-            fitted_sp, fitted_ep, s, R, t = fit.fit_points(x, X_ind, self.model, n_sp = self.n_shape_para, n_ep = self.n_exp_para, max_iter = max_iter)
+            fitted_sp, fitted_ep, s, R, t = fit.fit_points(x, X_ind, self.model, n_sp=self.n_shape_para,
+                                                           n_ep=self.n_exp_para, max_iter=max_iter, lamb=lamb)
             angles = mesh.transform.matrix2angle(R)
         return fitted_sp, fitted_ep, s, angles, t
-
-

@@ -2,8 +2,11 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import h5py
 import numpy as np
 import scipy.io as sio
+from easydict import EasyDict
+
 
 ### ---------------------------------  load BFM data
 def load_BFM(model_path):
@@ -30,7 +33,7 @@ def load_BFM(model_path):
     '''
     C = sio.loadmat(model_path)
     model = C['model']
-    model = model[0,0]
+    model = model[0, 0]
 
     # change dtype from double(np.float64) to np.float32, 
     # since big matrix process(espetially matrix dot) is too slow in python.
@@ -41,15 +44,46 @@ def load_BFM(model_path):
     model['expPC'] = model['expPC'].astype(np.float32)
 
     # matlab start with 1. change to 0 in python.
-    model['tri'] = model['tri'].T.copy(order = 'C').astype(np.int32) - 1
-    model['tri_mouth'] = model['tri_mouth'].T.copy(order = 'C').astype(np.int32) - 1
-    
+    model['tri'] = model['tri'].T.copy(order='C').astype(np.int32) - 1
+    model['tri_mouth'] = model['tri_mouth'].T.copy(order='C').astype(np.int32) - 1
+
     # kpt ind
     model['kpt_ind'] = (np.squeeze(model['kpt_ind']) - 1).astype(np.int32)
 
     return model
 
-def load_BFM_info(path = 'BFM_info.mat'):
+
+def load_BFM_from_h5(model_path):
+    h5_model19 = h5py.File(model_path, 'r')
+    model19 = EasyDict()
+
+    model19['shapeMU'] = (h5_model19['shape']['model']['mean'][:]).astype(np.float32)[:, np.newaxis]
+    model19['shapePC'] = h5_model19['shape']['model']['pcaBasis'][:].astype(np.float32)
+    model19['shapeEV'] = h5_model19['shape']['model']['pcaVariance'][:][:, np.newaxis].astype(np.float32)
+
+    model19['expMU'] = (h5_model19['expression']['model']['mean'][:]).astype(np.float32)[:, np.newaxis]
+    model19['expPC'] = h5_model19['expression']['model']['pcaBasis'][:].astype(np.float32)
+    model19['expEV'] = h5_model19['expression']['model']['pcaVariance'][:][:, np.newaxis].astype(np.float32)
+
+    model19['texMU'] = (h5_model19['color']['model']['mean'][:]).astype(np.float32)[:, np.newaxis]
+    model19['texPC'] = h5_model19['color']['model']['pcaBasis'][:].astype(np.float32)
+    model19['texEV'] = h5_model19['color']['model']['pcaVariance'][:][:, np.newaxis].astype(np.float32)
+
+    model19['tri'] = h5_model19['shape']['representer']['cells'][:].T.copy(order='C').astype(np.int32)
+    model19['tri'] = model19['tri'][:, [0, 2, 1]].copy()
+    model19['tri_mouth'] = np.zeros((0, 3))
+
+    # kpt ind
+    model19['kpt_ind'] = np.array([50546, 49508, 46954, 39984, 39455, 38072, 57369, 36323, 37692, 7219, 3909, 27065, 28540, 4437,
+                          10508, 3230, 21252, 52477, 55203, 35184, 37134, 34884, 5782, 27011, 11097, 14811, 12382,
+                          33509, 38938, 33248, 37890,
+                          40143, 41555, 37800, 12260, 25304, 44826, 30135, 45309, 33670, 45349, 44596, 18771, 16392,
+                          24599, 19134, 577, 16054, 41124, 57495, 32850, 37779, 26978, 20955, 12466, 16352, 22167,
+                          51461, 53392, 55752, 37535, 34334, 33502, 4840, 59, 18546, 58180, 18546]).astype(np.int32)
+    return model19
+
+
+def load_BFM_info(path='BFM_info.mat'):
     ''' load 3DMM model extra information
     Args:
         path: path to BFM info. 
@@ -72,10 +106,11 @@ def load_BFM_info(path = 'BFM_info.mat'):
     '''
     C = sio.loadmat(path)
     model_info = C['model_info']
-    model_info = model_info[0,0]
+    model_info = model_info[0, 0]
     return model_info
 
-def load_uv_coords(path = 'BFM_UV.mat'):
+
+def load_uv_coords(path='BFM_UV.mat'):
     ''' load uv coords of BFM
     Args:
         path: path to data.
@@ -83,10 +118,11 @@ def load_uv_coords(path = 'BFM_UV.mat'):
         uv_coords: [nver, 2]. range: 0-1
     '''
     C = sio.loadmat(path)
-    uv_coords = C['UV'].copy(order = 'C')
+    uv_coords = C['UV'].copy(order='C')
     return uv_coords
 
-def load_pncc_code(path = 'pncc_code.mat'):
+
+def load_pncc_code(path='pncc_code.mat'):
     ''' load pncc code of BFM
     PNCC code: Defined in 'Face Alignment Across Large Poses: A 3D Solution Xiangyu'
     download at http://www.cbsr.ia.ac.cn/users/xiangyuzhu/projects/3DDFA/main.htm.
@@ -99,12 +135,13 @@ def load_pncc_code(path = 'pncc_code.mat'):
     pncc_code = C['vertex_code'].T
     return pncc_code
 
-## 
+
+##
 def get_organ_ind(model_info):
     ''' get nose, eye, mouth index
     '''
     valid_bin = model_info['segbin'].astype(bool)
-    organ_ind = np.nonzero(valid_bin[0,:])[0]
+    organ_ind = np.nonzero(valid_bin[0, :])[0]
     for i in range(1, valid_bin.shape[0] - 1):
-        organ_ind = np.union1d(organ_ind, np.nonzero(valid_bin[i,:])[0])
+        organ_ind = np.union1d(organ_ind, np.nonzero(valid_bin[i, :])[0])
     return organ_ind.astype(np.int32)
